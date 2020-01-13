@@ -8,7 +8,7 @@ module Types
     # resolver method for the items field - resolver method name must
     # match field name
     def items
-      Item.all
+      Item.preload(:user)
     end
   end
 end
