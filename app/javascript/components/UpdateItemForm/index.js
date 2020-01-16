@@ -1,7 +1,7 @@
 import React from "react";
 import { Mutation } from "react-apollo";
-import { UpdateItemMutation } from "./operations.graphql";
 import ProcessItemForm from "../ProcessItemForm";
+import { UpdateItemMutation } from "./operations.graphql";
 import cs from "./styles";
 
 const UpdateItemForm = ({
