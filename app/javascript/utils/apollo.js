@@ -1,11 +1,14 @@
 // client
 // cache
+import ActionCable from "actioncable";
 import { InMemoryCache } from "apollo-cache-inmemory";
 import { ApolloClient } from "apollo-client";
 import { ApolloLink, Observable } from "apollo-link";
 import { onError } from "apollo-link-error";
 // links
 import { HttpLink } from "apollo-link-http";
+import ActionCableLink from "graphql-ruby-client/subscriptions/ActionCableLink";
+
 export const createCache = () => {
   const cache = new InMemoryCache();
   if (process.env.NODE_ENV === "development") {
@@ -15,21 +18,49 @@ export const createCache = () => {
 };
 const getTokens = () => {
   const tokens = {
-    'X-CSRF-Token': document
+    "X-CSRF-Token": document
       .querySelector('meta[name="csrf-token"]')
-      .getAttribute('content'),
+      .getAttribute("content")
   };
-  const authToken = localStorage.getItem('mlToken');
+  const authToken = localStorage.getItem("mlToken");
   return authToken ? { ...tokens, Authorization: authToken } : tokens;
 };
 
 const setTokenForOperation = async operation => {
   return operation.setContext({
     headers: {
-      ...getTokens(),
-    },
+      ...getTokens()
+    }
   });
 };
+
+const getCableUrl = () => {
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const host = window.location.hostname;
+  const port = process.env.CABLE_PORT || "3000";
+  const authToken = localStorage.getItem("mlToken");
+  return `${protocol}//${host}:${port}/cable?token=${authToken}`;
+};
+
+const createActionCableLink = () => {
+  const cable = ActionCable.createConsumer(getCableUrl());
+  return new ActionCableLink({ cable });
+};
+const hasSubscriptionOperation = ({ query: { definitions } }) =>
+  definitions.some(
+    ({ kind, operation }) =>
+      kind === "OperationDefinition" && operation === "subscription"
+  );
+
+link: ApolloLink.from([
+  createErrorLink(),
+  createLinkWithToken(),
+  ApolloLink.split(
+    hasSubscriptionOperation,
+    createActionCableLink(),
+    createHttpLink()
+  )
+]);
 // link with token
 const createLinkWithToken = () =>
   new ApolloLink(
